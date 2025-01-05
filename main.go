@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	Iface = "wlan0"
+	Iface       = "wlan0"
+	NetworkSSID = "OpenWrt_5G"
 )
 
 func main() {
@@ -35,11 +36,11 @@ func StartCheck() {
 	connected := true
 	ns, err := Networks()
 	if err == nil {
-		connected = IsConnected(ns, "OpenWrt_5G")
+		connected = IsConnected(ns, NetworkSSID)
 	}
 
 	if !connected || !TryIPv6() {
-		Connect(ns, "OpenWrt_5G")
+		Connect(ns, NetworkSSID)
 	}
 	slog.Info("end check network")
 }
@@ -115,7 +116,7 @@ type Network struct {
 }
 
 func Networks() ([]Network, error) {
-	cmd := exec.Command("nmcli", "dev", "wifi", "list")
+	cmd := exec.Command("nmcli", "-t", "dev", "wifi", "list")
 
 	data, err := cmd.CombinedOutput()
 	if err != nil {
@@ -124,11 +125,9 @@ func Networks() ([]Network, error) {
 
 	scan := bufio.NewScanner(bytes.NewReader(data))
 
-	scan.Scan()
-
 	networks := make([]Network, 0)
 	for scan.Scan() {
-		fs := strings.Fields(scan.Text())
+		fs := strings.Split(strings.ReplaceAll(scan.Text(), `\:`, "-"), ":")
 
 		if len(fs) < 9 {
 			slog.Error("Invalid line", "line", scan.Text())
@@ -137,7 +136,7 @@ func Networks() ([]Network, error) {
 
 		networks = append(networks, Network{
 			Connected: fs[0] == "*",
-			BSSID:     fs[1],
+			BSSID:     strings.ReplaceAll(fs[1], "-", ":"),
 			SSID:      fs[2],
 			MODE:      fs[3],
 			CHAN:      fs[4],
@@ -151,20 +150,20 @@ func Networks() ([]Network, error) {
 	return networks, nil
 }
 
-func Connect(ns []Network, network string) {
+func Connect(ns []Network, ssid string) {
 	has := slices.IndexFunc(ns, func(n Network) bool {
-		return n.SSID == network
+		return n.SSID == ssid
 	})
-	if has != -1 {
-		slog.Error("can't find network", "network", network)
+	if has == -1 {
+		slog.Error("can't find network", "network", ssid)
 		return
 	}
 
-	cmd := exec.Command("nmcli", "dev", "wifi", "connect", network)
+	cmd := exec.Command("nmcli", "dev", "wifi", "connect", ssid)
 	data, err := cmd.CombinedOutput()
 	if err != nil {
 		slog.Error("Failed to connect", "error", err, "data", data)
 	}
 
-	slog.Info("Connect result", "network", network, "data", data)
+	slog.Info("Connect result", "network", ssid, "data", data)
 }

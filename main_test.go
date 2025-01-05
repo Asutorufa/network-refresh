@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"os"
+	"testing"
+)
 
 func TestNetworks(t *testing.T) {
 	t.Log(IPv6())
@@ -8,6 +12,10 @@ func TestNetworks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	en := json.NewEncoder(os.Stdout)
+	en.SetIndent("", "  ")
+	en.Encode(ns)
+
 	t.Log(ns)
 	t.Log(IsConnected(ns, "OpenWrt_5G"))
 }
