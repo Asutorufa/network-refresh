@@ -1,0 +1,13 @@
+[Unit]
+Description=network-refresh
+Requires=
+
+[Service]
+ExecStart=/home/asutorufa/Documents/Programming/network-refresh/network-refresh
+Restart=always
+RestartSec=30
+Slice=network-refresh.slice
+
+[Install]
+Also=
+WantedBy=default.target
